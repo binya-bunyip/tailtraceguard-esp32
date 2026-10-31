@@ -1,0 +1,6 @@
+build/
+.metadata
+.vscode/
+.idea/
+.DS_Store
+*.log
