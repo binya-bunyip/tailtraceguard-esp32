@@ -115,6 +115,20 @@ class TelemetryContractTests(unittest.TestCase):
         self.assertNotIn("your-tailtrace-guard.example.com", firmware_source)
         self.assertNotIn('\\"protocol\\":\\"bluetooth\\"', firmware_source)
 
+    def test_release_metadata_uses_confirmed_board_and_event_commit(self):
+        repository_root = Path(__file__).resolve().parents[1]
+        workflow = (repository_root / ".github" / "workflows" / "firmware.yml").read_text(
+            encoding="utf-8"
+        )
+        package_script = (repository_root / "scripts" / "package_firmware.py").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('"target_board": "Espressif ESP32-DevKitC v4;', package_script)
+        self.assertGreaterEqual(workflow.count("Espressif ESP32-DevKitC v4"), 1)
+        self.assertIn('git rev-parse HEAD', workflow)
+        self.assertIn("SOURCE_COMMIT: ${{ github.sha }}", workflow)
+
     def assert_valid_request(self, request):
         properties = self.contract["properties"]
         self.assertTrue(set(self.contract["required"]).issubset(request))

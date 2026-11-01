@@ -1,6 +1,6 @@
 # TailTrace Guard ESP32
 
-This repository builds for Espressif's `esp32` target using ESP-IDF v5.2.3. The intended board is an ESP32-DevKitC v4 with 4 MiB flash, as specified for this device; physical hardware behavior has not been verified here.
+This repository builds for Espressif's `esp32` target using ESP-IDF v5.2.3. The intended board is Espressif ESP32-DevKitC v4 with 4 MiB flash, as specified for this device; physical hardware behavior has not been verified here.
 
 ## Download a firmware release
 
@@ -10,7 +10,7 @@ The binary contains the ESP-IDF bootloader, custom partition table, initial OTA 
 
 Release `v1.0.0` predates the USB provisioning and Wi-Fi telemetry implementation described below; it only captures and counts Wi-Fi probe requests. A later versioned release is required to download those newer source changes.
 
-Before flashing, confirm the board is an ESP32-DevKitC v4 with 4 MiB flash. Disconnect the board from other power sources, connect its USB serial port, and verify the checksum in the directory containing the downloaded files:
+Before flashing, confirm the board is Espressif ESP32-DevKitC v4 with 4 MiB flash. Disconnect the board from other power sources, connect its USB serial port, and verify the checksum in the directory containing the downloaded files:
 
 ```bash
 sha256sum -c checksums.sha256
