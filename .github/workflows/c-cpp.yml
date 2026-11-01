@@ -1,23 +1,50 @@
-name: C/C++ CI
+name: ESP32 PR CI
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
+
+permissions:
+  contents: read
 
 jobs:
   build:
-
+    name: Build and test ESP32 firmware
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
     steps:
-    - uses: actions/checkout@v4
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Verify checked-out commit
+        env:
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          checked_out_commit="$(git rev-parse HEAD)"
+          if [[ "$checked_out_commit" != "$SOURCE_COMMIT" ]]; then
+            echo "Checked-out commit does not match the event commit" >&2
+            exit 1
+          fi
+
+      - name: Build, test, and package
+        env:
+          FIRMWARE_VERSION: dev-${{ github.sha }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: >-
+          docker run --rm -e FIRMWARE_VERSION -e SOURCE_COMMIT
+          -v "$PWD:/project" -w /project espressif/idf:v5.2.3
+          bash -lc '. /opt/esp/idf/export.sh >/dev/null
+          && idf.py set-target esp32
+          && idf.py build
+          && python -m unittest discover -s tests
+          && python scripts/package_firmware.py
+          --version "$FIRMWARE_VERSION" --commit "$SOURCE_COMMIT"'
+
+      - name: Upload temporary firmware artifact
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tailtraceguard-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
