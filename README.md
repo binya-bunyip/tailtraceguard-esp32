@@ -14,6 +14,15 @@ Before flashing, confirm the board uses a compatible generic ESP32 and has 4 MiB
 sha256sum -c checksums.sha256
 ```
 
+To verify that GitHub attested the package assets for this repository and workflow, install the GitHub CLI and run this for the firmware binary (repeat with `manifest.json` and `checksums.sha256` to verify those assets too):
+
+```bash
+gh attestation verify tailtraceguard-esp32-v1.2.3-full-flash.bin \
+  --repo binya-bunyip/tailtraceguard-esp32 \
+  --signer-workflow binya-bunyip/tailtraceguard-esp32/.github/workflows/firmware.yml \
+  --predicate-type https://tailtraceguard.io/attestations/firmware-package/v1
+```
+
 Erase and flash the complete image (replace `PORT` and the asset filename with the local values):
 
 ```bash
@@ -39,7 +48,7 @@ The existing capture code can identify a Wi-Fi source address and received signa
 
 ## Automated builds and releases
 
-Pull requests, branch pushes, and manually started workflow runs build and test in the pinned `espressif/idf:v5.2.3` environment for target `esp32`. They upload a temporary package artifact and do not publish a release unless the run is explicitly for a `vMAJOR.MINOR.PATCH` version tag. A valid version-tag run creates a GitHub Release with the generated firmware, `checksums.sha256`, and `manifest.json`.
+Pull requests, branch pushes, and manually started workflow runs build and test in the pinned `espressif/idf:v5.2.3` environment for target `esp32`. They upload a temporary package artifact and do not publish a release unless the run is explicitly for a `vMAJOR.MINOR.PATCH` version tag. A valid version-tag run creates a GitHub Release with the generated firmware, `checksums.sha256`, and `manifest.json`, and adds keyless GitHub attestations for all three assets. Attestations are bound to their asset digests and identify the source tag/commit, workflow run, ESP-IDF build image, and target.
 
 The manifest is JSON with this shape:
 
