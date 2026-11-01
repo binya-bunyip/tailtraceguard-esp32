@@ -1,78 +1,76 @@
 # TailTrace Guard ESP32
 
-This repository contains an ESP32 firmware project that listens for nearby Wi‑Fi probe requests and batches the data for upload to your TailTrace Guard API.
+This repository builds generic firmware for Espressif's `esp32` target using ESP-IDF v5.2.3. The exact development-board model is not identified in this repository; the configured flash size is 4 MiB.
 
-It is built with ESP-IDF and produces a flashable firmware image (.bin) for an ESP32 device.
+## Download a firmware release
 
-## What it does
-- Enables Wi‑Fi promiscuous mode
-- Captures probe request source MAC addresses
-- Reads RSSI values and timestamps
-- Aggregates sightings into batches
-- Sends JSON payloads to the TailTrace Guard API
+Download the versioned `full-flash` binary, `checksums.sha256`, and `manifest.json` from the project's [GitHub Releases](https://github.com/binya-bunyip/tailtraceguard-esp32/releases). Releases are created only from version tags such as `v1.2.3`; a release is available only after that tag has been published and its workflow succeeds.
 
-## Requirements
-- ESP-IDF v5.x installed and available in your shell
-- An ESP32 development board
-- A Wi‑Fi network for the device to connect to
-- A TailTrace Guard API endpoint and bearer token
+The binary contains the ESP-IDF bootloader, custom partition table, initial OTA data, and application image combined for flashing at address `0x0`. It is padded to the configured 4 MiB flash size. It does not contain Wi-Fi credentials, device tokens, private keys, or device-specific provisioning data.
 
-## Quick start
+Before flashing, confirm the board uses a compatible generic ESP32 and has 4 MiB flash. Disconnect the board from other power sources, connect its USB serial port, and verify the checksum in the directory containing the downloaded files:
 
-1. Install ESP-IDF: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/
-2. Export the environment:
+```bash
+sha256sum -c checksums.sha256
+```
 
-   ```bash
-   . $IDF_PATH/export.sh
-   ```
+Erase and flash the complete image (replace `PORT` and the asset filename with the local values):
 
-3. Configure your Wi‑Fi and API values in `sdkconfig.defaults` and `main/main.c`.
-4. Build:
+```bash
+esptool.py --chip esp32 --port PORT erase_flash
+esptool.py --chip esp32 --port PORT --baud 460800 write_flash \
+  --flash_mode dio --flash_freq 40m --flash_size 4MB \
+  0x0 tailtraceguard-esp32-v1.2.3-full-flash.bin
+```
 
-   ```bash
-   idf.py set-target esp32
-   idf.py build
-   ```
+Erasing removes existing data and settings on the device. Use a release that matches the actual board target and flash size. The versioned asset name, source commit, target, flash address, and SHA-256 are recorded in `manifest.json`.
 
-5. Flash to your board:
+## Firmware behavior and setup status
 
-   ```bash
-   idf.py -p /dev/ttyUSB0 flash
-   ```
+The firmware enables Wi-Fi promiscuous mode, listens for Wi-Fi probe-request management frames on 2.4 GHz channels 1 through 13, and counts observations locally. It does not connect to Wi-Fi or send telemetry. It does not currently scan Bluetooth.
 
-6. The firmware binary will be created in the `build/` directory. The generated app image is typically named like:
+Device-specific Wi-Fi credentials and registered bearer tokens must be provided after download using a private provisioning method. No such method exists in this repository, so the released binary is generic test firmware and is not end-to-end ready for telemetry or website use. Do not put credentials in source code or public build configuration.
 
-   ```text
-   build/tailtraceguard_esp32.bin
-   ```
+## Telemetry contract status
 
-## Notes
-- This is a sensor node design. It captures and reports observations, but the heavier storage and analytics logic should remain in the TailTrace Guard dashboard backend.
-- For production use, add deduplication, local ignore lists, retry logic, and stronger TLS validation.
+The documented endpoint is `POST https://tail-guard.polsia.io/api/telemetry` with `Authorization: Bearer <registered device token>`, `Content-Type: application/json`, and the required body fields `observedAt`, `observedAddress`, `protocol`, `rssiDbm`, and `frequencyMHz`; optional GPS coordinates are also mentioned by the contract. The old `device_id`/`events` batch payload is not used or documented as a compatible request.
 
-## API contract
-The device posts JSON like this:
+The existing capture code can identify a Wi-Fi source address and received signal strength. It does not establish a wall-clock value or representation for `observedAt`, nor does it currently retain the radio frequency in MHz. The repository also does not define the GPS coordinate shape, the Bluetooth observation source, or a private provisioning method. These are unresolved integration requirements, so this firmware intentionally sends no telemetry. The offline tests check the declared contract names and protocol values; they do not call the live API or validate website integration. No live API connectivity, provisioning, or firmware-page discovery has been tested.
+
+## Automated builds and releases
+
+Pull requests, branch pushes, and manually started workflow runs build and test in the pinned `espressif/idf:v5.2.3` environment for target `esp32`. They upload a temporary package artifact and do not publish a release unless the run is explicitly for a `vMAJOR.MINOR.PATCH` version tag. A valid version-tag run creates a GitHub Release with the generated firmware, `checksums.sha256`, and `manifest.json`.
+
+The manifest is JSON with this shape:
 
 ```json
 {
-  "device_id": "esp32-tailtrace-sensor",
-  "events": [
+  "manifest_version": 1,
+  "firmware_version": "v1.2.3",
+  "source_commit": "<40-character Git commit SHA>",
+  "target": "esp32",
+  "target_board": "Generic ESP32; exact board model is unspecified",
+  "flash_size_bytes": 4194304,
+  "assets": [
     {
-      "mac": "AA:BB:CC:DD:EE:FF",
-      "rssi": -62,
-      "count": 4,
-      "ts_ms": 1729600000000
+      "name": "tailtraceguard-esp32-v1.2.3-full-flash.bin",
+      "type": "full-flash",
+      "flash_address": "0x0",
+      "sha256": "<64-character SHA-256>"
     }
   ]
 }
 ```
 
-## Example firmware generation
+## Optional local development
+
+Install ESP-IDF v5.2.3 and its supported tools, then from the repository root:
 
 ```bash
-export IDF_PATH=~/esp/esp-idf
 . "$IDF_PATH/export.sh"
 idf.py set-target esp32
 idf.py build
-ls -l build
+python -m unittest discover -s tests
 ```
+
+The application binary is `build/tailtraceguard_esp32.bin`; it is not a complete flash package. ESP-IDF generates the required bootloader, partition table, and OTA data images plus their exact offsets in `build/flasher_args.json`. The release workflow combines those images and validates the resulting package. Do not flash the application binary alone as if it were the complete firmware.

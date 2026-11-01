@@ -1,0 +1,81 @@
+name: ESP32 firmware
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tailtraceguard-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and test ESP32 firmware
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build and package
+        env:
+          FIRMWARE_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('dev-{0}', github.sha) }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: >-
+          docker run --rm -e FIRMWARE_VERSION -e SOURCE_COMMIT
+          -v "$PWD:/project" -w /project espressif/idf:v5.2.3
+          bash -lc '. /opt/esp/idf/export.sh >/dev/null
+          && idf.py set-target esp32
+          && idf.py build
+          && python -m unittest discover -s tests
+          && python scripts/package_firmware.py
+          --version "$FIRMWARE_VERSION" --commit "$SOURCE_COMMIT"'
+
+      - name: Upload temporary build artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tailtraceguard-test-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish tagged firmware release
+    needs: build
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download build package
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: tailtraceguard-test-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist/
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          RELEASE_NOTES: |
+            Generic ESP32 firmware built from this tag. No Wi-Fi credentials or device token are included. The firmware currently captures Wi-Fi probe requests but does not send telemetry; private provisioning and the API observedAt representation remain unresolved.
+
+            Download the full-flash asset and checksums.sha256, then verify with `sha256sum -c checksums.sha256`. Erase the ESP32 and flash the complete 4 MiB image at address `0x0` using esptool. Confirm the exact board supports the generic ESP32 target and 4 MiB flash before flashing.
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Refusing to release non-version tag: $TAG" >&2
+            exit 1
+          fi
+          gh release create "$TAG" dist/* \
+            --verify-tag \
+            --title "$TAG" \
+            --notes "$RELEASE_NOTES"

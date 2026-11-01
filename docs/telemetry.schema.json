@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TailTrace Guard telemetry request contract",
+  "type": "object",
+  "x-endpoint": "POST https://tail-guard.polsia.io/api/telemetry",
+  "x-authorization": "Bearer <registered device token>",
+  "x-content-type": "application/json",
+  "required": [
+    "observedAt",
+    "observedAddress",
+    "protocol",
+    "rssiDbm",
+    "frequencyMHz"
+  ],
+  "properties": {
+    "observedAt": {},
+    "observedAddress": {
+      "type": "string"
+    },
+    "protocol": {
+      "enum": ["wifi", "bluetooth"]
+    },
+    "rssiDbm": {
+      "type": "integer"
+    },
+    "frequencyMHz": {
+      "type": "number"
+    },
+    "gps": {}
+  }
+}

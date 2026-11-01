@@ -1,6 +1,10 @@
 build/
+dist/
 .metadata
 .vscode/
 .idea/
 .DS_Store
 *.log
+sdkconfig
+sdkconfig.old
+__pycache__/
