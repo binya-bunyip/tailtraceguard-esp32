@@ -81,7 +81,7 @@ jobs:
         uses: actions/attest@0fae56888724ae3bba68e14ff82712d5c3d8e1f0 # v2.2.0
         with:
           subject-path: dist/*
-          predicate-type: https://tailtraceguard.io/attestations/firmware-package/v1
+          predicate-type: https://github.com/binya-bunyip/tailtraceguard-esp32/attestation-types/firmware-package/v1
           predicate-path: ${{ runner.temp }}/firmware-predicate.json
 
       - name: Publish GitHub Release
@@ -91,7 +91,7 @@ jobs:
           RELEASE_NOTES: |
             Generic ESP32 firmware built from this tag. No Wi-Fi credentials or device token are included. The firmware currently captures Wi-Fi probe requests but does not send telemetry; private provisioning and the API observedAt representation remain unresolved.
 
-            Verify package authenticity with `gh attestation verify ASSET --repo binya-bunyip/tailtraceguard-esp32 --signer-workflow binya-bunyip/tailtraceguard-esp32/.github/workflows/firmware.yml --predicate-type https://tailtraceguard.io/attestations/firmware-package/v1`. Also verify the download checksum with `sha256sum -c checksums.sha256`. Erase the ESP32 and flash the complete 4 MiB image at address `0x0` using esptool. Confirm the exact board supports the generic ESP32 target and 4 MiB flash before flashing.
+            Verify package authenticity with `gh attestation verify ASSET --repo binya-bunyip/tailtraceguard-esp32 --signer-workflow binya-bunyip/tailtraceguard-esp32/.github/workflows/firmware.yml --predicate-type https://github.com/binya-bunyip/tailtraceguard-esp32/attestation-types/firmware-package/v1`. Also verify the download checksum with `sha256sum -c checksums.sha256`. Erase the ESP32 and flash the complete 4 MiB image at address `0x0` using esptool. Confirm the exact board supports the generic ESP32 target and 4 MiB flash before flashing.
         run: |
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Refusing to release non-version tag: $TAG" >&2

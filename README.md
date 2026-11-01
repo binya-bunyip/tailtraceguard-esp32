@@ -20,7 +20,7 @@ To verify that GitHub attested the package assets for this repository and workfl
 gh attestation verify tailtraceguard-esp32-v1.2.3-full-flash.bin \
   --repo binya-bunyip/tailtraceguard-esp32 \
   --signer-workflow binya-bunyip/tailtraceguard-esp32/.github/workflows/firmware.yml \
-  --predicate-type https://tailtraceguard.io/attestations/firmware-package/v1
+  --predicate-type https://github.com/binya-bunyip/tailtraceguard-esp32/attestation-types/firmware-package/v1
 ```
 
 Erase and flash the complete image (replace `PORT` and the asset filename with the local values):
