@@ -8,7 +8,7 @@ Download the versioned `full-flash` binary, `checksums.sha256`, and `manifest.js
 
 The binary contains the ESP-IDF bootloader, custom partition table, initial OTA data, and application image combined for flashing at address `0x0`. It is padded to the configured 4 MiB flash size. It does not contain Wi-Fi credentials, device tokens, private keys, or device-specific provisioning data.
 
-Release `v1.0.0` predates the USB provisioning and Wi-Fi telemetry implementation described below; it only captures and counts Wi-Fi probe requests. A later versioned release is required to download those newer source changes.
+Release `v1.0.0` predates the USB provisioning and Wi-Fi telemetry implementation described below; it only captures and counts Wi-Fi probe requests. Release `v1.1.0` is built from current `main` commit `9d0a1402e885c78ae6d12dfaa0900a9e2d5a31a7` and contains the Wi-Fi telemetry and USB serial provisioning source described here. Physical hardware behavior and live API delivery remain unverified for both releases.
 
 Before flashing, confirm the board is Espressif ESP32-DevKitC v4 with 4 MiB flash. Disconnect the board from other power sources, connect its USB serial port, and verify the checksum in the directory containing the downloaded files:
 
