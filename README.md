@@ -1,6 +1,6 @@
 # TailTrace Guard ESP32
 
-This repository builds generic firmware for Espressif's `esp32` target using ESP-IDF v5.2.3. The exact development-board model is not identified in this repository; the configured flash size is 4 MiB.
+This repository builds for Espressif's `esp32` target using ESP-IDF v5.2.3. The intended board is an ESP32-DevKitC v4 with 4 MiB flash, as specified for this device; physical hardware behavior has not been verified here.
 
 ## Download a firmware release
 
@@ -8,7 +8,9 @@ Download the versioned `full-flash` binary, `checksums.sha256`, and `manifest.js
 
 The binary contains the ESP-IDF bootloader, custom partition table, initial OTA data, and application image combined for flashing at address `0x0`. It is padded to the configured 4 MiB flash size. It does not contain Wi-Fi credentials, device tokens, private keys, or device-specific provisioning data.
 
-Before flashing, confirm the board uses a compatible generic ESP32 and has 4 MiB flash. Disconnect the board from other power sources, connect its USB serial port, and verify the checksum in the directory containing the downloaded files:
+Release `v1.0.0` predates the USB provisioning and Wi-Fi telemetry implementation described below; it only captures and counts Wi-Fi probe requests. A later versioned release is required to download those newer source changes.
+
+Before flashing, confirm the board is an ESP32-DevKitC v4 with 4 MiB flash. Disconnect the board from other power sources, connect its USB serial port, and verify the checksum in the directory containing the downloaded files:
 
 ```bash
 sha256sum -c checksums.sha256
@@ -36,17 +38,23 @@ Erasing removes existing data and settings on the device. Use a release that mat
 
 ## Firmware behavior and setup status
 
-The firmware enables Wi-Fi promiscuous mode, listens for Wi-Fi probe-request management frames on 2.4 GHz channels 1 through 13, and counts observations locally. It does not connect to Wi-Fi or send telemetry. It does not currently scan Bluetooth.
+The current source captures Wi-Fi probe requests on 2.4 GHz channels 1 through 13. It records the frame's source MAC, RSSI, receive channel (converted to MHz), and UTC timestamp after SNTP synchronization. It pauses promiscuous scanning to connect to the configured network and uploads each observation separately over HTTPS with the registered bearer token. The HTTPS client uses ESP-IDF's CA certificate bundle.
 
-Device-specific Wi-Fi credentials and registered bearer tokens must be provided after download using a private provisioning method. No such method exists in this repository, so the released binary is generic test firmware and is not end-to-end ready for telemetry or website use. Do not put credentials in source code or public build configuration.
+On first boot without provisioned settings, connect a trusted USB serial terminal to the board at 115200 baud. Disable the terminal's local echo, then enter the Wi-Fi network name, password (blank for an open network), and registered device token at the prompts. The firmware does not print the values. They are stored in NVS in plaintext, as approved for physically trusted setup; anyone with physical flash access can recover them. Do not provision in an untrusted location. To replace credentials, erase only the NVS partition while the board is in its bootloader, then reset it so the firmware prompts again:
+
+```bash
+esptool.py --chip esp32 --port PORT erase_region 0x9000 0x5000
+```
+
+No credentials are embedded in source, build defaults, CI, or generic release binaries. The provisioning path does not currently provide NVS/flash encryption.
 
 ## Telemetry contract status
 
 The documented endpoint is `POST https://tail-guard.polsia.io/api/telemetry` with `Authorization: Bearer <registered device token>` and `Content-Type: application/json`. The required JSON fields are `observedAt` (ISO 8601 with timezone), `observedAddress` (Wi-Fi MAC or Bluetooth LE private address), `protocol` (`wifi` or `bluetooth`), `rssiDbm`, and `frequencyMHz`. Optional GPS data has the shape `{"latitude": ..., "longitude": ...}`. The old `device_id`/`events` batch payload is not sent or documented as a compatible request.
 
-The current capture code obtains a Wi-Fi probe request source address and RSSI, but its queue consumer only counts observations and discards the queued details. It does not retain the received channel as `frequencyMHz`, synchronize a wall clock for `observedAt`, or connect to a network: it starts Wi-Fi in `WIFI_MODE_NULL` and hops channels. There is no Bluetooth scanner or GPS source. Sending telemetry therefore cannot be implemented reliably from the current firmware without adding network/time setup and hardware/product decisions.
+Bluetooth telemetry remains blocked. The ESP-IDF 5.2.3 BLE GAP scan report available to this firmware provides an address and RSSI but not the advertising receive channel; the required `frequencyMHz` cannot be determined without controller-level channel reporting or a different scanner. The firmware therefore does not scan Bluetooth or submit Bluetooth observations. GPS is optional and no GPS receiver is identified on the board.
 
-There is also no private provisioning mechanism for entering Wi-Fi credentials or a registered device token after download. A safe provisioning design (including how credentials are stored, entered, and protected on the target board) is not specified in this repository. No credentials are built into firmware or supplied by GitHub Actions. Until these capabilities are designed and verified, this generic firmware does not send telemetry and is not end-to-end ready. Offline tests exercise representative request objects and required field formats only; they do not send data to the live API or establish device, provisioning, or website behavior.
+The offline tests validate representative request objects, UTC formatting, Wi-Fi frequency mapping, and the sender's documented field mapping without contacting the live API. A successful compile and source-level tests do not verify serial provisioning on hardware, RF capture accuracy, network/time synchronization in deployment, server acceptance, BLE scanning, GPS, or integration with the TailTrace Guard website. End-to-end and hardware behavior remain unverified.
 
 A successful CI compile confirms that the source builds for the configured ESP32 target; it does not verify physical-board compatibility, RF capture behavior, telemetry delivery, credential provisioning, or website integration.
 
@@ -54,7 +62,7 @@ A successful CI compile confirms that the source builds for the configured ESP32
 
 Pull requests, branch pushes, and manually started workflow runs build and test in the pinned `espressif/idf:v5.2.3` environment for target `esp32`. They upload a temporary package artifact and do not publish a release unless the run is explicitly for a `vMAJOR.MINOR.PATCH` version tag. A valid version-tag run creates a GitHub Release with the generated firmware, `checksums.sha256`, and `manifest.json`, and adds keyless GitHub attestations for all three assets. Attestations are bound to their asset digests and identify the source tag/commit, workflow run, ESP-IDF build image, and target.
 
-The manifest is JSON with this shape:
+The release manifest is JSON with this shape:
 
 ```json
 {
@@ -62,7 +70,7 @@ The manifest is JSON with this shape:
   "firmware_version": "v1.2.3",
   "source_commit": "<40-character Git commit SHA>",
   "target": "esp32",
-  "target_board": "Generic ESP32; exact board model is unspecified",
+  "target_board": "Espressif ESP32-DevKitC v4; hardware behavior not verified",
   "flash_size_bytes": 4194304,
   "assets": [
     {

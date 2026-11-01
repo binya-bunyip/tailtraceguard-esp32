@@ -90,7 +90,7 @@ def main():
         "firmware_version": args.version,
         "source_commit": args.commit.lower(),
         "target": "esp32",
-        "target_board": "Generic ESP32; exact board model is unspecified",
+        "target_board": "Espressif ESP32-DevKitC v4; hardware behavior not verified",
         "flash_size_bytes": FLASH_SIZE_BYTES,
         "assets": [
             {

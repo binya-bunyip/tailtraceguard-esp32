@@ -95,9 +95,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           RELEASE_NOTES: |
-            Generic ESP32 firmware built from this tag. No Wi-Fi credentials or device token are included. The firmware currently captures Wi-Fi probe requests but does not send telemetry; private provisioning and the API observedAt representation remain unresolved.
+            ESP32-DevKitC v4 firmware for Wi-Fi probe-request telemetry. On first boot, enter Wi-Fi credentials and a registered device token over a trusted USB serial session. Values are stored unencrypted in NVS; physical flash access can recover them. HTTPS telemetry is sent after UTC synchronization, pausing scanning during upload.
 
-            Verify package authenticity with `gh attestation verify ASSET --repo binya-bunyip/tailtraceguard-esp32 --signer-workflow binya-bunyip/tailtraceguard-esp32/.github/workflows/firmware.yml --predicate-type https://github.com/binya-bunyip/tailtraceguard-esp32/attestation-types/firmware-package/v1`. Also verify the download checksum with `sha256sum -c checksums.sha256`. Erase the ESP32 and flash the complete 4 MiB image at address `0x0` using esptool. Confirm the exact board supports the generic ESP32 target and 4 MiB flash before flashing.
+            Bluetooth telemetry is not included because the configured BLE scan API does not expose the receive channel needed for `frequencyMHz`. GPS is omitted. Physical hardware and live API behavior have not been verified. See README for setup and limitations.
+
+            Verify package authenticity with `gh attestation verify ASSET --repo binya-bunyip/tailtraceguard-esp32 --signer-workflow binya-bunyip/tailtraceguard-esp32/.github/workflows/firmware.yml --predicate-type https://github.com/binya-bunyip/tailtraceguard-esp32/attestation-types/firmware-package/v1`. Also verify the download checksum with `sha256sum -c checksums.sha256`. Erase the ESP32 and flash the complete 4 MiB image at address `0x0` using esptool. Confirm the actual board has 4 MiB flash before flashing.
         run: |
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([+-][0-9A-Za-z.-]+)?$ ]]; then
             echo "Refusing to release non-version tag: $TAG" >&2

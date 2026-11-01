@@ -39,7 +39,7 @@ class TelemetryContractTests(unittest.TestCase):
         self.assert_valid_request(request)
         self.assertNotIn("gps", request)
 
-    def test_bluetooth_request_can_include_gps_object(self):
+    def test_documented_bluetooth_request_shape_can_include_gps(self):
         request = {
             "observedAt": "2026-01-15T12:30:45+00:00",
             "observedAddress": "02:00:00:00:00:02",
@@ -89,13 +89,31 @@ class TelemetryContractTests(unittest.TestCase):
         self.assertEqual(self.contract["x-authorization"], "Bearer <registered device token>")
         self.assertEqual(self.contract["x-content-type"], "application/json")
 
-    def test_firmware_does_not_send_legacy_batches_or_unconfigured_http(self):
+    def test_public_build_defaults_enable_ca_validation_without_credentials(self):
+        defaults_path = Path(__file__).resolve().parents[1] / "sdkconfig.defaults"
+        defaults = defaults_path.read_text(encoding="utf-8")
+
+        self.assertIn("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y", defaults)
+        self.assertIn("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y", defaults)
+        self.assertNotIn("CONFIG_ESP_WIFI_SSID=", defaults)
+        self.assertNotIn("CONFIG_ESP_WIFI_PASSWORD=", defaults)
+
+    def test_firmware_uses_configured_https_without_legacy_batches_or_secrets(self):
         firmware_path = Path(__file__).resolve().parents[1] / "main" / "main.c"
         firmware_source = firmware_path.read_text(encoding="utf-8")
 
         self.assertNotIn("device_id", firmware_source)
         self.assertNotIn("events", firmware_source)
-        self.assertNotIn("esp_http_client", firmware_source)
+        self.assertIn('"https://tail-guard.polsia.io/api/telemetry"', firmware_source)
+        self.assertIn("esp_crt_bundle_attach", firmware_source)
+        self.assertIn('\\"protocol\\":\\"wifi\\"', firmware_source)
+        self.assertIn("2407 + channel * 5", firmware_source)
+        self.assertIn('"%Y-%m-%dT%H:%M:%SZ"', firmware_source)
+        self.assertIn('esp_http_client_set_header(client, "Authorization", authorization)', firmware_source)
+        self.assertIn('nvs_set_str(handle, "device_token", g_device_token)', firmware_source)
+        self.assertNotIn("YOUR_API_TOKEN", firmware_source)
+        self.assertNotIn("your-tailtrace-guard.example.com", firmware_source)
+        self.assertNotIn('\\"protocol\\":\\"bluetooth\\"', firmware_source)
 
     def assert_valid_request(self, request):
         properties = self.contract["properties"]
