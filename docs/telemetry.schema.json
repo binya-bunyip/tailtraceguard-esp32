@@ -13,9 +13,13 @@
     "frequencyMHz"
   ],
   "properties": {
-    "observedAt": {},
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "observedAddress": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "protocol": {
       "enum": ["wifi", "bluetooth"]
@@ -26,6 +30,17 @@
     "frequencyMHz": {
       "type": "number"
     },
-    "gps": {}
+    "gps": {
+      "type": "object",
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        }
+      }
+    }
   }
 }
